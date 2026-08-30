@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Ambulance Response | Emergency Driver Portal</title>
+  
+  <!-- Google Fonts (Plus Jakarta Sans, Noto Sans Tamil, Mukta Malar, JetBrains Mono) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Catamaran:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600;700;800&family=Mukta+Malar:wght@400;500;600;700;800&family=Noto+Sans+Tamil:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <!-- Leaflet CSS for Map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            app: '#08101e',
+            navy: {
+              800: '#1e293b',
+              900: '#0f172a',
+              950: '#08101e',
+            },
+            emergency: '#e11d48',
+            active: '#10b981',
+            trust: '#0284c7',
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-slate-950 text-white antialiased select-none">
+
+  <!-- Mobile Viewport Container -->
+  <div class="mobile-viewport-container relative">
+
+    <!-- Top Status Bar -->
+    <div class="w-full h-8 px-5 pt-1.5 flex items-center justify-between text-[11px] font-mono text-slate-300 z-50 shrink-0">
+      <div id="liveClock" class="font-bold text-white tracking-wider">21:32:22</div>
+      <div class="flex items-center space-x-2 text-[10px]">
+        <span class="flex items-center gap-1 text-emerald-400 font-bold tracking-wide">
+          <i data-lucide="map-pin" class="w-3 h-3 text-emerald-400 fill-emerald-400"></i> <span data-i18n="gps_active">GPS ACTIVE</span>
+        </span>
+        <span class="text-slate-500 font-normal">|</span>
+        <span class="text-slate-200 font-semibold tracking-wide">4G LTE</span>
+        <i data-lucide="signal" class="w-3.5 h-3.5 text-white"></i>
+      </div>
+    </div>
+
+    <!-- Duty Started Pop-up Notification -->
+    <div id="dutyStartedPopup" class="duty-started-popup">
+      <div class="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 shadow-sm border border-emerald-200">
+        <i data-lucide="check" class="w-7 h-7 stroke-[3.5]"></i>
+      </div>
+      <div class="flex-1 space-y-0.5">
+        <div class="flex items-center space-x-2">
+          <h4 id="dutyPopupTitle" data-i18n="duty_started_title" class="text-sm font-black text-slate-900 tracking-tight">Welcome, Arun Kumar</h4>
+          <span id="dutyPopupBadge" data-i18n="on_duty_badge" class="text-[9.5px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">● ON DUTY</span>
+        </div>
+        <p id="dutyPopupSub" data-i18n="duty_started_sub" class="text-xs text-slate-600 font-semibold">Duty started • Ambulance Unit TN 01 AB 4521</p>
+      </div>
+      <button type="button" id="closeDutyPopupBtn" class="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100 transition-colors">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+
+    <!-- Case Closed Pop-up Notification -->
+    <div id="caseClosedPopup" class="duty-started-popup">
+      <div class="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 shadow-sm border border-emerald-200">
+        <i data-lucide="award" class="w-7 h-7 stroke-[2.5]"></i>
+      </div>
+      <div class="flex-1 space-y-0.5">
+        <div class="flex items-center space-x-2">
+          <h4 data-i18n="case_closed_title" class="text-sm font-black text-slate-900 tracking-tight">Case Closed</h4>
+          <span data-i18n="case_closed_status" class="text-[9.5px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">● COMPLETED</span>
+        </div>
+        <p id="caseClosedPopupSub" data-i18n="case_closed_sub" class="text-xs text-slate-600 font-semibold">Case closed successfully. Unit ready on duty.</p>
+      </div>
+      <button type="button" id="closeCaseClosedPopupBtn" class="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100 transition-colors">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- SCREEN 1: LOGIN (EXACT REFERENCE DESIGN)                          -->
+    <!-- ================================================================= -->
+    <section id="screenLogin" class="screen-view px-4 pb-4 pt-1 flex flex-col justify-between relative">
+      
+      <!-- Background City Skyline & Ambulance Lighting Graphic -->
+      <div class="hero-city-ambulance-bg">
+        <div class="ambient-red-glow"></div>
+        <svg class="w-full h-full opacity-35" viewBox="0 0 400 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- City Skyline Silhouette (Left) -->
+          <path d="M0 240V140H15V110H28V140H40V80H55V140H68V100H85V140H100V60H118V140H135V90H150V140H170V120H190V240H0Z" fill="#0f1f38" opacity="0.6"/>
+          <path d="M45 85H50V90H45V85ZM45 95H50V100H45V95ZM105 70H112V75H105V70ZM105 85H112V90H105V85Z" fill="#38bdf8" opacity="0.3"/>
+          
+          <!-- Ambulance Body Silhouette (Right) -->
+          <path d="M220 240L230 115C235 110 250 105 285 105H370C385 105 395 115 400 130V240H220Z" fill="#0b172a" opacity="0.9"/>
+          <path d="M245 130H305V165H240L245 130Z" fill="#030712" opacity="0.7"/>
+          <path d="M320 130H385V165H320V130Z" fill="#030712" opacity="0.7"/>
+          
+          <!-- Ambulance Red Emergency Lightbars -->
+          <rect x="290" y="96" width="30" height="7" rx="3" fill="#e11d48" filter="drop-shadow(0 0 8px #e11d48)"/>
+          <rect x="330" y="96" width="30" height="7" rx="3" fill="#e11d48" filter="drop-shadow(0 0 8px #e11d48)"/>
+          <circle cx="280" cy="100" r="4" fill="#fb7185" filter="drop-shadow(0 0 6px #e11d48)"/>
+          <circle cx="370" cy="100" r="4" fill="#fb7185" filter="drop-shadow(0 0 6px #e11d48)"/>
+        </svg>
+      </div>
+
+      <!-- Hero Header Area -->
+      <div class="relative z-10 pt-4 pb-2 flex flex-col items-center text-center space-y-2 shrink-0">
+        
+        <!-- Medical Shield Emblem with Star of Life & Red ECG line -->
+        <div class="medical-shield-emblem mx-auto mb-1">
+          <svg class="w-16 h-20" viewBox="0 0 64 76" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- Shield Outer Red Border Glow -->
+            <path d="M32 2L4 12V34C4 53.6 15.9 71.8 32 74C48.1 71.8 60 53.6 60 34V12L32 2Z" fill="#0a1424" stroke="#e11d48" stroke-width="2.5"/>
+            <!-- Shield Inner White Border -->
+            <path d="M32 6L8 15V34C8 51.2 18.2 67.2 32 69.5C45.8 67.2 56 51.2 56 34V15L32 6Z" fill="#0c192d" stroke="#ffffff" stroke-width="1.5"/>
+            
+            <!-- Star of Life / Rod of Asclepius in White -->
+            <path d="M32 18V52M20 25L44 45M20 45L44 25" stroke="#ffffff" stroke-width="4.5" stroke-linecap="round"/>
+            <circle cx="32" cy="22" r="2.5" fill="#e11d48"/>
+            <path d="M32 24C29 27 35 30 32 33C29 36 35 39 32 42C29 45 35 48 32 50" stroke="#0c192d" stroke-width="2" stroke-linecap="round"/>
+            
+            <!-- Red ECG Line crossing through center -->
+            <path d="M6 35H24L27 28L31 43L35 31L38 38L41 35H58" stroke="#e11d48" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+
+        <!-- Title -->
+        <div class="leading-none">
+          <h1 class="text-[26px] font-black tracking-tight text-white uppercase">AMBULANCE</h1>
+          <h2 class="text-[26px] font-black tracking-tight text-emergency uppercase -mt-0.5">RESPONSE</h2>
+        </div>
+
+        <!-- Subtitle -->
+        <p data-i18n="app_portal_title" class="text-[10px] font-bold text-slate-400 tracking-[0.2em] uppercase">
+          EMERGENCY DRIVER PORTAL
+        </p>
+
+        <!-- Red ECG Heartbeat Line -->
+        <div class="w-44 h-3 flex items-center justify-center pt-0.5">
+          <svg class="w-full h-full text-emergency" viewBox="0 0 160 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M0 8H65L70 2L75 14L80 5L85 11L90 8H160" stroke="#e11d48" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+
+      </div>
+
+      <!-- Main Login Card (White Rounded Surface) -->
+      <div class="login-main-card p-5 mt-8 space-y-3.5 shadow-2xl">
+        
+        <!-- Eyebrow & Greeting -->
+        <div class="space-y-0.5">
+          <div class="flex items-center space-x-1.5 text-emergency text-[11px] font-extrabold uppercase tracking-wider">
+            <i data-lucide="user" class="w-3.5 h-3.5 stroke-[2.5]"></i>
+            <span data-i18n="driver_sign_in">DRIVER SIGN IN</span>
+          </div>
+
+          <h3 class="text-xl font-extrabold text-navy-900 leading-tight">
+            <span data-i18n="welcome_back">Welcome back,</span> <span class="text-emergency font-black">Arun</span>
+          </h3>
+
+          <p data-i18n="sign_in_sub" class="text-xs text-slate-500 font-medium">
+            Sign in to access your driver dashboard
+          </p>
+        </div>
+
+        <!-- Form Inputs -->
+        <div class="space-y-2.5 pt-0.5">
+          
+          <!-- Driver ID Field -->
+          <div class="space-y-1">
+            <label data-i18n="lbl_driver_id" class="block text-[11.5px] font-semibold text-slate-700">Driver ID / Employee ID</label>
+            <div class="form-input-container flex items-center px-2.5 py-1.5">
+              <div class="input-icon-box">
+                <i data-lucide="badge" class="w-4 h-4 text-slate-500"></i>
+              </div>
+              <input 
+                type="text" 
+                id="driverIdInput" 
+                value="AMB-1042" 
+                class="flex-1 px-3 py-1 bg-transparent text-slate-900 font-bold text-sm focus:outline-none"
+              >
+              <div class="text-emerald-500 pr-1 flex items-center">
+                <i data-lucide="shield-check" class="w-5 h-5 fill-emerald-100 text-emerald-600"></i>
+              </div>
+            </div>
+          </div>
+
+          <!-- Password Field -->
+          <div class="space-y-1">
+            <label data-i18n="lbl_password" class="block text-[11.5px] font-semibold text-slate-700">Password / Secure PIN</label>
+            <div class="form-input-container flex items-center px-2.5 py-1.5">
+              <div class="input-icon-box">
+                <i data-lucide="lock" class="w-4 h-4 text-slate-500"></i>
+              </div>
+              <input 
+                type="password" 
+                id="passwordInput" 
+                value="1042" 
+                class="flex-1 px-3 py-1 bg-transparent text-slate-900 font-bold text-sm tracking-wider focus:outline-none"
+              >
+              <button type="button" id="togglePasswordBtn" class="text-slate-400 hover:text-slate-600 pr-1 p-1">
+                <i id="passwordEyeIcon" data-lucide="eye" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Form Actions Row (Remember me & Forgot password) -->
+          <div class="flex items-center justify-between pt-0.5">
+            <label class="flex items-center space-x-2 cursor-pointer">
+              <div id="rememberCheckbox" class="w-4 h-4 rounded bg-emergency flex items-center justify-center text-white cursor-pointer transition-colors shadow-sm">
+                <i data-lucide="check" class="w-3 h-3 stroke-[3]"></i>
+              </div>
+              <span data-i18n="remember_me" class="text-xs font-semibold text-slate-600">Remember me</span>
+            </label>
+
+            <button type="button" id="forgotPasswordBtn" data-i18n="forgot_password" class="text-xs font-bold text-emergency hover:underline">
+              Forgot password?
+            </button>
+          </div>
+
+          <!-- Primary CTA Button -->
+          <button 
+            type="button" 
+            id="loginSubmitBtn" 
+            class="btn-login-cta w-full py-3.5 px-4 flex items-center justify-center space-x-2 mt-2"
+          >
+            <i data-lucide="log-in" class="w-4 h-4 stroke-[2.5]"></i>
+            <span data-i18n="login_start_duty" class="text-xs sm:text-sm font-extrabold uppercase">LOGIN &amp; START DUTY</span>
+            
+            <!-- ECG Wave Accent on right -->
+            <svg class="btn-ecg-bg-wave" viewBox="0 0 100 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M0 12H40L44 4L48 20L52 8L56 16L60 12H100" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+
+        </div>
+
+      </div>
+
+      <!-- Bottom Reassurance -->
+      <div class="text-center pt-2 pb-1 space-y-0.5 z-10 shrink-0">
+        <div class="w-5 h-5 mx-auto text-slate-400 flex items-center justify-center mb-0.5">
+          <i data-lucide="shield" class="w-4 h-4 text-slate-400"></i>
+        </div>
+        <p data-i18n="login_quote_2" class="text-[11px] text-slate-400 font-medium">
+          Your response makes a difference.
+        </p>
+        <p class="text-xs font-bold text-white">
+          <span data-i18n="login_quote_3">Drive safe.</span> <span data-i18n="login_quote_4" class="text-emergency font-extrabold">Save lives.</span>
+        </p>
+      </div>
+
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- SCREEN 2: DUTY STARTED CONFIRMATION                               -->
+    <!-- ================================================================= -->
+    <section id="screenDutyStarted" class="screen-view p-6 flex flex-col justify-between hidden bg-slate-50">
+      
+      <div class="pt-8 text-center space-y-3">
+        <div class="w-20 h-20 rounded-full bg-emerald-50 border-2 border-emerald-500 mx-auto flex items-center justify-center text-emerald-600 shadow-xl shadow-emerald-500/10">
+          <i data-lucide="check" class="w-10 h-10 stroke-[3]"></i>
+        </div>
+        
+        <div>
+          <h1 class="text-2xl font-black text-slate-900 tracking-tight uppercase" data-i18n="on_duty_header">DUTY STARTED</h1>
+          <p class="text-sm font-semibold text-emerald-600 mt-1" data-i18n="duty_started_title">Welcome, Arun Kumar</p>
+        </div>
+
+        <div class="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-emerald-100 text-emerald-800 font-extrabold text-xs uppercase tracking-widest">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span data-i18n="on_duty_header">ON DUTY</span>
+        </div>
+      </div>
+
+      <div class="clean-card p-5 space-y-3.5 my-auto">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
+          <span data-i18n="lbl_driver" class="text-xs font-mono text-slate-400 uppercase">Driver</span>
+          <span class="text-sm font-extrabold text-slate-900 uppercase">ARUN KUMAR</span>
+        </div>
+        <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
+          <span data-i18n="lbl_driver_id" class="text-xs font-mono text-slate-400 uppercase">Driver ID</span>
+          <span class="text-sm font-mono font-bold text-slate-900">AMB-1042</span>
+        </div>
+        <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
+          <span data-i18n="lbl_ambulance_unit" class="text-xs font-mono text-slate-400 uppercase">Ambulance</span>
+          <span class="text-sm font-mono font-bold text-emerald-600">TN 01 AB 4521</span>
+        </div>
+        <div class="flex items-center justify-between pt-1">
+          <span data-i18n="lbl_status" class="text-xs font-mono text-slate-400 uppercase">Status</span>
+          <span data-i18n="available_dispatch" class="text-xs font-bold text-emerald-600">Available for Dispatch</span>
+        </div>
+      </div>
+
+      <button 
+        type="button" 
+        id="proceedToWaitingBtn" 
+        class="w-full py-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-sm tracking-wider uppercase shadow-lg shadow-slate-900/20 transition-all flex items-center justify-center gap-2"
+      >
+        <span data-i18n="resume_duty_btn">CONTINUE TO DISPATCH QUEUE</span>
+        <i data-lucide="arrow-right" class="w-4 h-4 text-emerald-400"></i>
+      </button>
+
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- SCREEN 3: WAITING FOR EMERGENCY ASSIGNMENT (EXACT HOME DESIGN)   -->
+    <!-- ================================================================= -->
+    <section id="screenWaiting" class="screen-view p-4 flex flex-col justify-between hidden bg-slate-50 space-y-3.5">
+      
+      <!-- Top Bar with Profile and History Buttons -->
+      <div class="flex items-center justify-between pt-1 shrink-0">
+        <div class="flex items-center space-x-2.5">
+          <span id="headerDutyDot" class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></span>
+          <div>
+            <h2 id="headerDutyText" data-i18n="on_duty_header" class="text-sm font-black tracking-tight text-slate-900 uppercase leading-none">ON DUTY</h2>
+            <p id="headerDutySub" data-i18n="on_duty_sub" class="text-[11px] text-slate-500 font-medium mt-0.5">TN 01 AB 4521 • Arun Kumar</p>
+          </div>
+        </div>
+
+        <div class="flex items-center space-x-2">
+          <!-- Profile Button -->
+          <button type="button" id="openProfileBtn" aria-label="Profile" class="header-card-btn">
+            <i data-lucide="user" class="w-4 h-4 text-slate-700"></i>
+            <span id="openProfileBtnText" data-i18n="profile_btn" class="text-[10px] font-bold text-slate-700 mt-0.5">Profile</span>
+          </button>
+          
+          <!-- History Button (Stores & views response records) -->
+          <button type="button" id="openHistoryBtn" aria-label="History" class="header-card-btn">
+            <i data-lucide="history" class="w-4 h-4 text-slate-700"></i>
+            <span id="openHistoryBtnText" data-i18n="history_btn" class="text-[10px] font-bold text-slate-700 mt-0.5">History</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Interactive Duty Switcher Card (Toggle ON/OFF Duty) -->
+      <div id="dutySwitcherCard" class="p-3 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-between shrink-0">
+        <div class="flex items-center space-x-2.5">
+          <div id="dutyStatusIconBadge" class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center shrink-0">
+            <i id="dutyStatusIcon" data-lucide="shield-check" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <div class="flex items-center space-x-1.5">
+              <span id="dutyStatusBadgeDot" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <h4 id="dutyStatusBadgeLabel" data-i18n="active_duty_label" class="text-xs font-black text-slate-900 uppercase">ACTIVE ON DUTY</h4>
+            </div>
+            <p id="dutyStatusBadgeSub" data-i18n="active_duty_sub" class="text-[10px] text-slate-500 font-medium">Ready for emergency calls</p>
+          </div>
+        </div>
+
+        <!-- Action Button to Switch Mode -->
+        <button 
+          type="button" 
+          id="toggleDutyModeBtn" 
+          class="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-[10.5px] uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-sm active:scale-95 cursor-pointer"
+        >
+          <i id="toggleDutyModeIcon" data-lucide="coffee" class="w-3.5 h-3.5 text-amber-400"></i>
+          <span id="toggleDutyModeText" data-i18n="go_off_duty_btn">GO OFF DUTY</span>
+        </button>
+      </div>
+
+      <!-- Center Radar Beacon Area -->
+      <div class="my-auto text-center space-y-3 py-1">
+        
+        <!-- Large Green Concentric Beacon with ((o)) -->
+        <div id="waitingRadarCircle" class="waiting-pulse-circle mx-auto">
+          <div class="pulse-wave"></div>
+          <div class="pulse-wave"></div>
+          <div class="pulse-wave"></div>
+          <div class="pulse-core">
+            <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-7 h-7 text-white">
+              <circle cx="16" cy="16" r="3.5" fill="#ffffff"/>
+              <path d="M10 11C7.5 13.5 7.5 18.5 10 21" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round"/>
+              <path d="M22 11C24.5 13.5 24.5 18.5 22 21" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round"/>
+              <path d="M6 7C2 12 2 20 6 25" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" opacity="0.85"/>
+              <path d="M26 7C30 12 30 20 26 25" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" opacity="0.85"/>
+            </svg>
+          </div>
+        </div>
+
+        <div class="space-y-1">
+          <h2 id="radarMainTitle" data-i18n="waiting_radar_title" class="text-base font-black text-slate-900 uppercase tracking-tight">WAITING FOR EMERGENCY ASSIGNMENT</h2>
+          <p id="radarMainSub" data-i18n="waiting_radar_sub" class="text-xs text-slate-500 font-medium max-w-xs mx-auto leading-relaxed">
+            Keep app active. Control Room will dispatch the nearest trauma case.
+          </p>
+        </div>
+
+      </div>
+
+      <!-- Unit Details Card (3 Clean Rows) -->
+      <div class="clean-card p-3 space-y-2 shadow-sm shrink-0">
+        
+        <!-- Row 1: Ambulance Unit -->
+        <div class="flex items-center justify-between pb-1.5 border-b border-slate-100">
+          <div class="flex items-center space-x-2.5">
+            <div class="unit-row-icon-box">
+              <i data-lucide="truck" class="w-3.5 h-3.5"></i>
+            </div>
+            <span data-i18n="lbl_ambulance_unit" class="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">AMBULANCE UNIT</span>
+          </div>
+          <span class="text-xs font-black text-slate-900 font-mono">TN 01 AB 4521</span>
+        </div>
+
+        <!-- Row 2: Driver -->
+        <div class="flex items-center justify-between pb-1.5 border-b border-slate-100">
+          <div class="flex items-center space-x-2.5">
+            <div class="unit-row-icon-box">
+              <i data-lucide="user" class="w-3.5 h-3.5"></i>
+            </div>
+            <span data-i18n="lbl_driver" class="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">DRIVER</span>
+          </div>
+          <span class="text-xs font-black text-slate-900">Arun Kumar</span>
+        </div>
+
+        <!-- Row 3: Status -->
+        <div class="flex items-center justify-between pt-0.5">
+          <div class="flex items-center space-x-2.5">
+            <div class="unit-row-icon-box">
+              <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+            </div>
+            <span data-i18n="lbl_status" class="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">STATUS</span>
+          </div>
+          <span id="unitCardStatusBadge" data-i18n="available_dispatch" class="text-xs font-extrabold text-emerald-600 flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Available for Dispatch
+          </span>
+        </div>
+      </div>
+
+      <!-- Dispatch Simulator Card (Dashed Red Box) -->
+      <div class="dispatch-simulator-box p-3 space-y-2 shrink-0 shadow-sm">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-2">
+            <i data-lucide="radio" class="w-3.5 h-3.5 text-rose-600"></i>
+            <div>
+              <h4 data-i18n="dispatch_simulator" class="text-xs font-black text-slate-900 uppercase">DISPATCH SIMULATOR</h4>
+              <p data-i18n="test_sub" class="text-[9.5px] text-slate-400 font-medium">For training &amp; testing purposes only</p>
+            </div>
+          </div>
+          <span data-i18n="test_mode" class="text-[9px] font-extrabold text-rose-600 bg-rose-100/90 px-2 py-0.5 rounded-full border border-rose-200 uppercase tracking-wider">
+            TEST MODE
+          </span>
+        </div>
+
+        <button 
+          type="button" 
+          id="simulateDispatchBtn" 
+          class="w-full py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 active:scale-[0.99] text-white font-extrabold text-xs tracking-wider uppercase shadow-md shadow-rose-600/25 transition-all flex items-center justify-center gap-2"
+        >
+          <i data-lucide="siren" class="w-4 h-4"></i>
+          <span data-i18n="assign_test_btn">ASSIGN TEST EMERGENCY</span>
+        </button>
+      </div>
+
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- SCREEN 4: SMARTPHONE INCOMING EMERGENCY CALL SCREEN (EXACT MATCH) -->
+    <!-- ================================================================= -->
+    <section id="screenIncomingCall" class="screen-view p-4 flex flex-col justify-between hidden phone-call-backdrop text-white space-y-2.5">
+      
+      <!-- Atmospheric Night Emergency City & Ambulance Background Graphic -->
+      <div class="incoming-call-hero-bg">
+        <svg class="w-full h-full opacity-40" viewBox="0 0 400 270" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- City Light Silhouette on Left -->
+          <path d="M0 270V170H25V140H40V170H60V110H80V170H100V130H125V170H140V90H160V170H180V150H200V270H0Z" fill="#0b172a" opacity="0.7"/>
+          <path d="M65 115H72V122H65V115ZM145 100H152V107H145V100Z" fill="#38bdf8" opacity="0.4"/>
+          <!-- Red ECG Heartbeat line across Left -->
+          <path d="M0 135H30L35 115L42 160L48 120L54 145L60 135H120" stroke="#e11d48" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+          
+          <!-- High-Speed Ambulance on Right -->
+          <path d="M220 270L235 130C240 125 255 120 290 120H370C385 120 395 130 400 145V270H220Z" fill="#0f1f38" opacity="0.95"/>
+          <path d="M250 145H310V180H245L250 145Z" fill="#030712" opacity="0.8"/>
+          <path d="M325 145H388V180H325V145Z" fill="#030712" opacity="0.8"/>
+          <!-- Emergency Red/Blue Lightbars on Top of Ambulance -->
+          <rect x="295" y="112" width="28" height="8" rx="4" fill="#e11d48" filter="drop-shadow(0 0 12px #e11d48)"/>
+          <rect x="330" y="112" width="28" height="8" rx="4" fill="#0284c7" filter="drop-shadow(0 0 12px #0284c7)"/>
+          <circle cx="285" cy="116" r="4" fill="#fb7185" filter="drop-shadow(0 0 8px #e11d48)"/>
+          <circle cx="370" cy="116" r="4" fill="#38bdf8" filter="drop-shadow(0 0 8px #0284c7)"/>
+        </svg>
+      </div>
+
+      <!-- Top Incoming Pill Badge -->
+      <div class="pt-2 text-center z-10 shrink-0">
+        <div class="incoming-pill-badge inline-flex items-center gap-2">
+          <span class="text-rose-500 font-extrabold text-xs leading-none">(( ))</span>
+          <span data-i18n="incoming_badge" class="text-[11px] font-black text-rose-300 tracking-[0.18em] uppercase">INCOMING EMERGENCY CALL</span>
+        </div>
+      </div>
+
+      <!-- Center Neon Red Radar Siren Beacon -->
+      <div class="text-center z-10 py-1 shrink-0">
+        <div class="siren-radar-circle mx-auto">
+          <div class="radar-wave"></div>
+          <div class="radar-wave"></div>
+          <div class="radar-wave"></div>
+          <div class="siren-core-icon">
+            <svg class="w-7 h-7 text-rose-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M7 18v-6a5 5 0 1 1 10 0v6"/>
+              <path d="M5 21a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-1a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2z"/>
+              <path d="M21 12h1"/>
+              <path d="M18.5 4.5 19 4"/>
+              <path d="M2 12h1"/>
+              <path d="M12 2v1"/>
+              <path d="m4.929 4.929.707.707"/>
+              <path d="M12 12v6"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- Title & Subtitle -->
+      <div class="text-center space-y-1 z-10 shrink-0">
+        <h1 class="text-2xl sm:text-[26px] font-black tracking-tight text-white uppercase">EMERGENCY DISPATCH</h1>
+        <p class="text-[11px] font-black text-rose-500 uppercase tracking-[0.25em]">
+          CONTROL ROOM &nbsp;•&nbsp; CALL CENTER
+        </p>
+      </div>
+
+      <!-- Translucent Main Case Card -->
+      <div class="incoming-case-card p-4 space-y-3.5 z-10 shadow-2xl shrink-0">
+        
+        <!-- Assigned Case Header -->
+        <div class="flex items-center justify-between border-b border-slate-700/50 pb-2.5">
+          <span data-i18n="lbl_case_id" class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">ASSIGNED CASE:</span>
+          <span id="incomingCaseId" class="text-xs font-mono font-black text-white tracking-wider">ER-2026-69655</span>
+        </div>
+
+        <!-- Emergency Location -->
+        <div class="space-y-0.5">
+          <span data-i18n="lbl_incident_loc" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">EMERGENCY LOCATION:</span>
+          <h3 id="incomingAddress" class="text-sm font-black text-white leading-snug">GST Road, Guindy Junction, Chennai</h3>
+        </div>
+
+        <!-- 3-Column Metrics Grid (Distance, Est Time, Severity) -->
+        <div class="grid grid-cols-3 gap-2 pt-1">
+          <!-- Distance -->
+          <div class="metric-pill-box">
+            <div class="stat-icon-circle">
+              <i data-lucide="map-pin" class="w-3.5 h-3.5 stroke-[2.5]"></i>
+            </div>
+            <span data-i18n="lbl_distance" class="text-[9.5px] font-bold text-slate-400 uppercase">DISTANCE</span>
+            <span id="incomingDistance" class="text-xs font-black text-white mt-0.5">5.4 km</span>
+          </div>
+
+          <!-- Est. Time -->
+          <div class="metric-pill-box">
+            <div class="stat-icon-circle">
+              <i data-lucide="clock" class="w-3.5 h-3.5 stroke-[2.5]"></i>
+            </div>
+            <span data-i18n="lbl_est_eta" class="text-[9.5px] font-bold text-slate-400 uppercase">EST. TIME</span>
+            <span id="incomingEta" class="text-xs font-black text-white mt-0.5">12 min</span>
+          </div>
+
+          <!-- Severity -->
+          <div class="metric-pill-box">
+            <div class="stat-icon-circle">
+              <i data-lucide="alert-circle" class="w-3.5 h-3.5 stroke-[2.5]"></i>
+            </div>
+            <span data-i18n="lbl_severity" class="text-[9.5px] font-bold text-slate-400 uppercase">SEVERITY</span>
+            <span id="incomingSeverity" data-i18n="high_priority_label" class="text-xs font-black text-rose-500 mt-0.5">High Priority</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Ringtone & Haptic Alert Active Indicator -->
+      <div class="text-center z-10 py-0.5 shrink-0">
+        <div class="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+          <i data-lucide="bell-ring" class="w-3.5 h-3.5 text-rose-500 animate-bounce"></i>
+          <span>RINGTONE &amp; HAPTIC ALERT ACTIVE</span>
+        </div>
+      </div>
+
+      <!-- Slide to Attend Immediate Action Slider -->
+      <div class="shrink-0 space-y-2 pt-2 pb-2 z-10">
+        <div id="swipeTrack" class="ios-swipe-track cursor-pointer select-none">
+          <div id="swipeProgress" class="ios-swipe-progress"></div>
+          <div class="ios-swipe-text">
+            <span data-i18n="slide_to_attend">SLIDE TO ATTEND &gt;&gt;&gt;</span>
+          </div>
+          <div id="swipeThumb" class="ios-swipe-thumb cursor-grab active:cursor-grabbing">
+            <i data-lucide="phone" class="w-5 h-5 fill-white stroke-[1.5]"></i>
+          </div>
+        </div>
+        <p data-i18n="slide_attend_sub" class="text-center text-[10.5px] font-bold text-slate-400 uppercase tracking-widest">
+          SLIDE THUMB OR TAP TO ATTEND
+        </p>
+      </div>
+
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- SCREEN 5: NAVIGATION & ACTIVE GPS MAP (100% FULL SCREEN)          -->
+    <!-- ================================================================= -->
+    <section id="screenNavigation" class="screen-view hidden">
+      
+      <!-- Top Navigation Floating HUD Header -->
+      <div class="nav-header-hud flex items-center justify-between">
+        <div class="space-y-1">
+          <div class="flex items-center space-x-2">
+            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-950/90 text-emerald-400 border border-emerald-700/60 font-extrabold text-[10px] uppercase tracking-wider">
+              <span data-i18n="nav_to_incident">NAVIGATING TO INCIDENT ▲</span>
+            </span>
+            <span id="navCaseId" class="text-xs font-mono font-bold text-slate-300">ER-2026-85812</span>
+            <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+          </div>
+          <h1 id="navAddressTitle" class="text-xl sm:text-2xl font-black text-white tracking-tight leading-none mt-1 truncate max-w-[200px]">OMR Road</h1>
+        </div>
+
+        <div class="text-right leading-none">
+          <span data-i18n="eta_label" class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">ETA</span>
+          <div id="navEtaDisplay" class="text-2xl sm:text-3xl font-black text-emerald-400 font-mono tracking-tight">12 min</div>
+          <div id="navDistanceDisplay" class="text-[11px] font-medium text-slate-300 mt-1">5.1 km remaining</div>
+        </div>
+      </div>
+
+      <!-- Live Interactive Map Area (Fills remaining height 100%) -->
+      <div class="nav-map-container">
+        <div id="navMap"></div>
+
+        <!-- Top Right Compass Needle -->
+        <div class="absolute top-4 right-4 z-30">
+          <button type="button" id="compassBtn" class="map-floating-btn" aria-label="North Compass">
+            <svg class="w-5 h-5 text-rose-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="12 2 19 21 12 17 5 21 12 2" fill="#e11d48"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Right Vertical Floating Map Control Buttons Stack -->
+        <div class="absolute bottom-6 right-4 z-30 flex flex-col gap-2.5">
+          <!-- Voice Mute Button -->
+          <button type="button" id="voiceMuteBtn" class="map-floating-btn" aria-label="Audio Guidance">
+            <i data-lucide="volume-2" class="w-4 h-4 text-slate-700"></i>
+          </button>
+
+          <!-- Layer Switcher Button -->
+          <button type="button" id="layerToggleBtn" class="map-floating-btn" aria-label="Map Layers">
+            <i data-lucide="layers" class="w-4 h-4 text-slate-700"></i>
+          </button>
+
+          <!-- Recenter GPS Button -->
+          <button type="button" id="recenterMapBtn" class="map-floating-btn" aria-label="Recenter Map">
+            <i data-lucide="crosshair" class="w-4 h-4 text-slate-700"></i>
+          </button>
+
+          <!-- Drive Fast Simulator Button -->
+          <button type="button" id="simulateDriveProgressBtn" class="map-floating-btn" aria-label="Simulate Drive">
+            <i data-lucide="fast-forward" class="w-4 h-4 text-emerald-600"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Bottom Sheet Navigation Card (Exact Match) -->
+      <div class="nav-bottom-sheet p-5 pt-3.5 shrink-0 z-20 space-y-3.5 shadow-2xl">
+        
+        <!-- Top Drag Handle Pill -->
+        <div class="w-10 h-1 rounded-full bg-slate-300 mx-auto mb-1"></div>
+
+        <!-- Emergency Caller Row -->
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-3">
+            <div class="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100">
+              <i data-lucide="phone" class="w-5 h-5 fill-emerald-600"></i>
+            </div>
+            <div>
+              <span data-i18n="caller_title" class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block leading-none">EMERGENCY CALLER</span>
+              <h4 id="navCallerPhone" class="text-base font-black text-slate-900 leading-tight mt-0.5">+91 94440 11223</h4>
+              <p data-i18n="caller_sub" class="text-[10px] text-slate-400 font-medium leading-none mt-0.5">Tap to call</p>
+            </div>
+          </div>
+
+          <a 
+            id="callCallerLink" 
+            href="tel:+919444011223" 
+            class="px-5 py-2 rounded-full border-1.5 border-emerald-500 text-emerald-600 hover:bg-emerald-50 font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition-colors shadow-sm"
+          >
+            <i data-lucide="phone" class="w-3.5 h-3.5 fill-emerald-600"></i>
+            <span data-i18n="call_btn">CALL</span>
+          </a>
+        </div>
+
+        <!-- 3-Column Live Metric Stats Row -->
+        <div class="flex items-center justify-between border-t border-b border-slate-100 py-3">
+          <!-- Distance -->
+          <div class="flex items-center space-x-2">
+            <i data-lucide="map-pin" class="w-4 h-4 text-slate-700"></i>
+            <div>
+              <span data-i18n="distance_label" class="text-[9.5px] font-bold text-slate-400 uppercase block leading-none">DISTANCE</span>
+              <span id="bottomNavDistance" class="text-sm font-black text-slate-900 mt-0.5 block leading-none">5.1 km</span>
+            </div>
+          </div>
+
+          <!-- Vertical Divider -->
+          <div class="w-px h-7 bg-slate-100"></div>
+
+          <!-- ETA -->
+          <div class="flex items-center space-x-2">
+            <i data-lucide="clock" class="w-4 h-4 text-slate-700"></i>
+            <div>
+              <span data-i18n="eta_label" class="text-[9.5px] font-bold text-slate-400 uppercase block leading-none">ETA</span>
+              <span id="bottomNavEta" class="text-sm font-black text-slate-900 mt-0.5 block leading-none">12 min</span>
+            </div>
+          </div>
+
+          <!-- Vertical Divider -->
+          <div class="w-px h-7 bg-slate-100"></div>
+
+          <!-- Traffic -->
+          <div class="flex items-center space-x-2">
+            <i data-lucide="gauge" class="w-4 h-4 text-slate-700"></i>
+            <div>
+              <span data-i18n="traffic_label" class="text-[9.5px] font-bold text-slate-400 uppercase block leading-none">TRAFFIC</span>
+              <span data-i18n="optimal_label" class="text-sm font-black text-emerald-600 mt-0.5 block leading-none">Optimal</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Primary Mark as Arrived at Location CTA Button -->
+        <button 
+          type="button" 
+          id="markArrivedBtn" 
+          class="btn-mark-arrived w-full py-3.5 px-4 flex items-center justify-between text-white active:scale-[0.99] transition-all cursor-pointer shadow-lg"
+        >
+          <!-- Left Green Check Circle -->
+          <div class="w-7 h-7 rounded-full border-2 border-emerald-500 text-emerald-400 flex items-center justify-center shrink-0">
+            <i data-lucide="check" class="w-4 h-4 stroke-[3]"></i>
+          </div>
+
+          <!-- Center Text -->
+          <span data-i18n="mark_arrived_location" class="text-xs sm:text-[13px] font-black tracking-wider uppercase">MARK AS ARRIVED AT LOCATION</span>
+
+          <!-- Right Chevrons Box -->
+          <div class="px-2 py-1 rounded-lg bg-slate-800 text-slate-300 flex items-center shrink-0">
+            <i data-lucide="chevrons-right" class="w-4 h-4"></i>
+          </div>
+        </button>
+
+      </div>
+
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- SCREEN 6: ARRIVED AT INCIDENT & TELEMETRY REPORT -> SLIDE TO START TRIP -->
+    <!-- ================================================================= -->
+    <section id="screenArrivedIncident" class="screen-view p-5 flex flex-col justify-between hidden bg-slate-900 text-white overflow-y-auto">
+      
+      <!-- Top Arrival & Status Header -->
+      <div class="pt-6 text-center space-y-2 shrink-0">
+        <div class="w-14 h-14 rounded-2xl bg-emerald-500/10 border-2 border-emerald-500 mx-auto flex items-center justify-center text-emerald-400 shadow-lg shadow-emerald-500/20">
+          <i data-lucide="map-pin-check" class="w-7 h-7 stroke-[2.5]"></i>
+        </div>
+        <h1 data-i18n="arrived_incident_title" class="text-2xl font-black text-white tracking-tight uppercase">ARRIVED AT INCIDENT</h1>
+        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/80 border border-emerald-700/60 text-emerald-400 text-[10.5px] font-bold uppercase">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span data-i18n="control_room_sync">CONTROL ROOM SYNCHRONIZED</span>
+        </div>
+      </div>
+
+      <!-- Incident Location Info Card -->
+      <div class="p-3.5 rounded-2xl bg-slate-800/80 border border-slate-700 space-y-2 my-2 shrink-0">
+        <div class="flex items-center justify-between text-xs font-mono border-b border-slate-700 pb-1.5">
+          <span data-i18n="lbl_case_id" class="text-slate-400 uppercase">Case ID:</span>
+          <span id="incidentArrivedCaseId" class="font-extrabold text-white">ER-2026-69655</span>
+        </div>
+        <div class="text-xs space-y-0.5">
+          <span data-i18n="lbl_incident_loc" class="text-slate-400 font-mono text-[10px] uppercase">Incident Location:</span>
+          <p id="incidentArrivedAddress" class="font-bold text-slate-200">GST Road, Guindy Junction, Chennai</p>
+        </div>
+      </div>
+
+      <!-- External Device Incoming Telemetry Medical Report -->
+      <div class="p-4 rounded-2xl bg-slate-800/95 border border-slate-700 space-y-3 shrink-0 shadow-xl">
+        <div class="flex items-center justify-between border-b border-slate-700 pb-2">
+          <div class="flex items-center space-x-2">
+            <span class="pulse-radar-dot"></span>
+            <span data-i18n="telemetry_report_header" class="text-[11px] font-mono font-black text-slate-200 uppercase tracking-wider">EXTERNAL TELEMETRY REPORT</span>
+          </div>
+          <span data-i18n="data_received_badge" class="text-[9px] font-extrabold px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800">DATA RECEIVED</span>
+        </div>
+
+        <!-- Medical Classification Badge -->
+        <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/90 border border-slate-700">
+          <div>
+            <span data-i18n="med_issue_class_lbl" class="text-[9.5px] font-bold text-slate-400 uppercase block">MEDICAL ISSUE CLASSIFICATION:</span>
+            <h3 id="reportIncidentType" class="text-sm font-black text-rose-400 uppercase tracking-tight mt-0.5">CARDIAC EMERGENCY</h3>
+          </div>
+          <span data-i18n="high_severity" class="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-950/80 text-rose-400 border border-rose-800">
+            HIGH SEVERITY
+          </span>
+        </div>
+
+        <!-- Assigned Destination Hospital Info -->
+        <div class="p-3 rounded-xl bg-slate-900/90 border border-slate-700 space-y-2 text-xs">
+          <div class="flex items-start justify-between">
+            <div>
+              <span data-i18n="assigned_hosp_lbl" class="text-[9.5px] font-bold text-slate-400 uppercase block">ASSIGNED HOSPITAL DESTINATION:</span>
+              <h4 id="reportHospitalName" class="text-sm font-black text-white leading-tight mt-0.5">Apollo Hospitals, Greams Rd</h4>
+            </div>
+            <span data-i18n="icu_avail_badge" class="text-[9px] font-extrabold px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 shrink-0">
+              ● ICU AVAILABLE
+            </span>
+          </div>
+
+          <div class="flex items-center justify-between text-[11px] font-mono border-t border-slate-800 pt-1.5 text-slate-300">
+            <span id="reportHospitalDistance">Distance: <strong>7.2 km</strong></span>
+            <span id="reportHospitalEta" class="text-emerald-400 font-bold">ETA: 14 min</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Slide to Start Hospital Navigation Trip -->
+      <div class="shrink-0 space-y-2 pt-3 pb-2 z-10">
+        <div id="slideStartTripTrack" class="ios-swipe-track cursor-pointer select-none">
+          <div id="slideStartTripProgress" class="ios-swipe-progress"></div>
+          <div class="ios-swipe-text">
+            <span data-i18n="slide_start_trip">SLIDE TO START TRIP &gt;&gt;&gt;</span>
+          </div>
+          <div id="slideStartTripThumb" class="ios-swipe-thumb cursor-grab active:cursor-grabbing">
+            <i data-lucide="navigation" class="w-5 h-5 fill-white stroke-[1.5]"></i>
+          </div>
+        </div>
+        <p data-i18n="slide_start_trip_sub" class="text-center text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+          SLIDE THUMB TO START HOSPITAL NAVIGATION
+        </p>
+      </div>
+
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- SCREEN 9: ACTIVE HOSPITAL NAVIGATION (WITH DYNAMIC REROUTE)       -->
+    <!-- ================================================================= -->
+    <section id="screenHospitalNavigation" class="screen-view hidden">
+      
+      <!-- Top Navigation Floating HUD Header -->
+      <div class="nav-header-hud flex items-center justify-between">
+        <div class="space-y-1">
+          <div class="flex items-center space-x-2">
+            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-950/90 text-emerald-400 border border-emerald-700/60 font-extrabold text-[10px] uppercase tracking-wider">
+              <span data-i18n="hosp_nav_badge">HOSPITAL NAV ▲</span>
+            </span>
+            <span id="hospNavCaseId" class="text-xs font-mono font-bold text-slate-300">ER-2026-69655</span>
+            <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+          </div>
+          <h1 id="hospNavTitle" class="text-xl sm:text-2xl font-black text-white tracking-tight leading-none mt-1 truncate max-w-[200px]">Apollo Hospitals</h1>
+        </div>
+
+        <div class="text-right leading-none">
+          <span data-i18n="eta_label" class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">ETA</span>
+          <div id="hospNavEtaDisplay" class="text-2xl sm:text-3xl font-black text-emerald-400 font-mono tracking-tight">14 min</div>
+          <div id="hospNavDistanceDisplay" class="text-[11px] font-medium text-slate-300 mt-1">7.2 km remaining</div>
+        </div>
+      </div>
+
+      <!-- Dynamic Reroute Alert Banner (Hidden by default, pops down on sudden unavailability) -->
+      <div id="hospitalRerouteBanner" class="hospital-reroute-banner hidden">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/50">
+            <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h4 data-i18n="dest_updated_title" class="text-xs font-black text-amber-300 leading-tight uppercase">DESTINATION UPDATED</h4>
+            <p id="rerouteReasonText" class="text-[10.5px] text-slate-200 leading-tight mt-0.5">
+              Apollo ICU unavailable. Routing to: <strong class="text-white font-bold">MIOT International</strong>
+            </p>
+          </div>
+        </div>
+        <button type="button" id="ackRerouteBtn" data-i18n="ack_btn" class="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[10px] uppercase shrink-0 transition-colors">
+          ACK
+        </button>
+      </div>
+
+      <!-- Live Interactive Map Area (Fills remaining height 100%) -->
+      <div class="nav-map-container">
+        <div id="hospitalNavMap"></div>
+
+        <!-- Top Right Compass Needle -->
+        <div class="absolute top-4 right-4 z-30">
+          <button type="button" class="map-floating-btn" aria-label="North Compass">
+            <svg class="w-5 h-5 text-rose-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="12 2 19 21 12 17 5 21 12 2" fill="#e11d48"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Right Vertical Floating Map Control Buttons Stack -->
+        <div class="absolute bottom-6 right-4 z-30 flex flex-col gap-2.5">
+          <!-- Voice Mute Button -->
+          <button type="button" class="map-floating-btn" aria-label="Audio Guidance">
+            <i data-lucide="volume-2" class="w-4 h-4 text-slate-700"></i>
+          </button>
+
+          <!-- Simulate Sudden ICU Full (Triggers Automatic Dynamic Reroute) -->
+          <button type="button" id="simulateHospInavailabilityBtn" class="map-floating-btn" title="Simulate Sudden ICU Full &amp; Auto-Reroute" aria-label="Simulate Reroute">
+            <i data-lucide="git-fork" class="w-4 h-4 text-amber-600"></i>
+          </button>
+
+          <!-- Recenter GPS Button -->
+          <button type="button" id="recenterHospMapBtn" class="map-floating-btn" aria-label="Recenter Map">
+            <i data-lucide="crosshair" class="w-4 h-4 text-slate-700"></i>
+          </button>
+
+          <!-- Drive Fast Simulator Button -->
+          <button type="button" id="simulateHospDriveProgressBtn" class="map-floating-btn" aria-label="Simulate Drive">
+            <i data-lucide="fast-forward" class="w-4 h-4 text-emerald-600"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Bottom Sheet Hospital Destination Card -->
+      <div class="nav-bottom-sheet p-5 pt-3.5 shrink-0 z-20 space-y-3.5 shadow-2xl">
+        
+        <!-- Top Drag Handle Pill -->
+        <div class="w-10 h-1 rounded-full bg-slate-300 mx-auto mb-1"></div>
+
+        <!-- Hospital Info Row -->
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-3">
+            <div class="w-11 h-11 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center shrink-0 border border-sky-100">
+              <i data-lucide="building-2" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <span data-i18n="hosp_dest_lbl" class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block leading-none">HOSPITAL DESTINATION</span>
+              <h4 id="bottomHospName" class="text-base font-black text-slate-900 leading-tight mt-0.5">Apollo Hospitals, Greams Rd</h4>
+              <p id="bottomHospStatusLine" data-i18n="er_open_icu_avail" class="text-[10px] text-emerald-600 font-bold leading-none mt-0.5">● Emergency Dept: Open • ICU: Available</p>
+            </div>
+          </div>
+
+          <a 
+            id="callHospitalLink" 
+            href="tel:+914428290200" 
+            class="px-4 py-2 rounded-full border-1.5 border-sky-500 text-sky-600 hover:bg-sky-50 font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition-colors shadow-sm"
+          >
+            <i data-lucide="phone" class="w-3.5 h-3.5 fill-sky-600"></i>
+            <span data-i18n="call_btn">CALL</span>
+          </a>
+        </div>
+
+        <!-- 3-Column Live Metric Stats Row -->
+        <div class="flex items-center justify-between border-t border-b border-slate-100 py-3">
+          <!-- Distance -->
+          <div class="flex items-center space-x-2">
+            <i data-lucide="map-pin" class="w-4 h-4 text-slate-700"></i>
+            <div>
+              <span data-i18n="distance_label" class="text-[9.5px] font-bold text-slate-400 uppercase block leading-none">DISTANCE</span>
+              <span id="bottomHospDistance" class="text-sm font-black text-slate-900 mt-0.5 block leading-none">7.2 km</span>
+            </div>
+          </div>
+
+          <!-- Vertical Divider -->
+          <div class="w-px h-7 bg-slate-100"></div>
+
+          <!-- ETA -->
+          <div class="flex items-center space-x-2">
+            <i data-lucide="clock" class="w-4 h-4 text-slate-700"></i>
+            <div>
+              <span data-i18n="eta_label" class="text-[9.5px] font-bold text-slate-400 uppercase block leading-none">ETA</span>
+              <span id="bottomHospEta" class="text-sm font-black text-slate-900 mt-0.5 block leading-none">14 min</span>
+            </div>
+          </div>
+
+          <!-- Vertical Divider -->
+          <div class="w-px h-7 bg-slate-100"></div>
+
+          <!-- Traffic -->
+          <div class="flex items-center space-x-2">
+            <i data-lucide="gauge" class="w-4 h-4 text-slate-700"></i>
+            <div>
+              <span data-i18n="traffic_label" class="text-[9.5px] font-bold text-slate-400 uppercase block leading-none">TRAFFIC</span>
+              <span data-i18n="optimal_label" class="text-sm font-black text-emerald-600 mt-0.5 block leading-none">Optimal</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Primary Action Button: Mark As Arrived at Hospital -->
+        <button 
+          type="button" 
+          id="markHospArrivedBtn" 
+          class="btn-mark-arrived w-full py-3.5 px-4 flex items-center justify-between text-white active:scale-[0.99] transition-all cursor-pointer shadow-lg"
+        >
+          <!-- Left Blue Check Circle -->
+          <div class="w-7 h-7 rounded-full border-2 border-sky-400 text-sky-300 flex items-center justify-center shrink-0">
+            <i data-lucide="check" class="w-4 h-4 stroke-[3]"></i>
+          </div>
+
+          <!-- Center Text -->
+          <span data-i18n="arrived_hosp_er_bay" class="text-xs sm:text-[13px] font-black tracking-wider uppercase">ARRIVED AT HOSPITAL ER BAY</span>
+
+          <!-- Right Chevrons Box -->
+          <div class="px-2 py-1 rounded-lg bg-slate-800 text-slate-300 flex items-center shrink-0">
+            <i data-lucide="chevrons-right" class="w-4 h-4"></i>
+          </div>
+        </button>
+
+      </div>
+
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- SCREEN 10: TRIP REPORT & BACK TO DUTY                             -->
+    <!-- ================================================================= -->
+    <section id="screenCompleted" class="screen-view p-5 flex flex-col justify-between hidden bg-slate-900 text-white overflow-y-auto">
+      
+      <!-- Top Title & Badge -->
+      <div class="pt-5 text-center space-y-1.5 shrink-0">
+        <div class="w-14 h-14 rounded-2xl bg-emerald-500/15 border-2 border-emerald-500 mx-auto flex items-center justify-center text-emerald-400 shadow-lg shadow-emerald-500/20">
+          <i data-lucide="file-check" class="w-7 h-7 stroke-[2.5]"></i>
+        </div>
+        <h1 data-i18n="trip_report_title" class="text-2xl font-black text-white tracking-tight uppercase">TRIP REPORT</h1>
+        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/80 border border-emerald-700/60 text-emerald-400 text-[10.5px] font-bold uppercase">
+          <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          <span id="completedCaseId">CASE ID: ER-2026-69655</span>
+        </div>
+      </div>
+
+      <!-- Trip Summary Report Card -->
+      <div class="p-4 rounded-2xl bg-slate-800/90 border border-slate-700 space-y-2.5 my-2.5 shrink-0 text-xs shadow-xl">
+        <div class="flex items-center justify-between border-b border-slate-700 pb-2">
+          <span data-i18n="med_class_lbl" class="text-slate-400 uppercase font-mono text-[10.5px]">Medical Classification</span>
+          <span id="reportSummaryType" class="font-extrabold text-rose-400 text-xs">CARDIAC EMERGENCY</span>
+        </div>
+
+        <div class="space-y-2 pt-0.5">
+          <div class="flex items-start gap-2 text-slate-300">
+            <i data-lucide="map-pin" class="w-4 h-4 text-rose-400 mt-0.5 shrink-0"></i>
+            <div>
+              <span data-i18n="pickup_loc_lbl" class="text-[9.5px] font-bold text-slate-400 uppercase block">Pickup Location</span>
+              <p id="reportSummaryPickup" class="font-bold text-white leading-tight mt-0.5">GST Road, Guindy Junction, Chennai</p>
+            </div>
+          </div>
+
+          <div class="flex items-start gap-2 text-slate-300 pt-0.5">
+            <i data-lucide="building-2" class="w-4 h-4 text-sky-400 mt-0.5 shrink-0"></i>
+            <div>
+              <span data-i18n="dropoff_hosp_lbl" class="text-[9.5px] font-bold text-slate-400 uppercase block">Drop-off Hospital</span>
+              <p id="reportSummaryHospital" class="font-bold text-white leading-tight mt-0.5">Apollo Hospitals, Greams Rd</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Metrics Grid -->
+        <div class="grid grid-cols-2 gap-2 border-t border-slate-700 pt-2 font-mono">
+          <div class="p-2 rounded-xl bg-slate-900/80 border border-slate-700/60 text-center">
+            <span data-i18n="total_dist_lbl" class="text-[9px] text-slate-400 uppercase block">Total Distance</span>
+            <span id="reportSummaryDistance" class="font-bold text-white text-xs mt-0.5 block">12.6 km</span>
+          </div>
+          <div class="p-2 rounded-xl bg-slate-900/80 border border-slate-700/60 text-center">
+            <span data-i18n="total_dur_lbl" class="text-[9px] text-slate-400 uppercase block">Total Duration</span>
+            <span id="reportSummaryDuration" class="font-bold text-emerald-400 text-xs mt-0.5 block">28 min</span>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between border-t border-slate-700 pt-2 text-[11px]">
+          <span data-i18n="handover_status_lbl" class="text-slate-400">Handover Status:</span>
+          <span data-i18n="dropped_handed_over_val" class="text-emerald-400 font-bold flex items-center gap-1">
+            <i data-lucide="check-check" class="w-3.5 h-3.5"></i> Dropped &amp; Handed Over
+          </span>
+        </div>
+      </div>
+
+      <!-- Action Button: Back to Duty -->
+      <div class="shrink-0 pb-2">
+        <button 
+          type="button" 
+          id="backToDutyBtn" 
+          class="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.99] text-white font-extrabold text-sm tracking-wider uppercase shadow-xl shadow-emerald-600/30 transition-all flex items-center justify-center gap-2"
+        >
+          <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+          <span data-i18n="back_to_duty_btn">BACK TO DUTY</span>
+        </button>
+      </div>
+
+    </section>
+
+    <!-- ================================================================= -->
+    <!-- MODALS & SAFETY GUARDS (SOLID THEME - ZERO TRANSPARENCY BUGS)     -->
+    <!-- ================================================================= -->
+
+    <!-- Profile Modal -->
+    <div id="modalProfile" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+      <div class="solid-modal-card w-full max-w-sm p-5 space-y-3.5 rounded-3xl shadow-2xl">
+        <div class="flex items-center justify-between border-b border-slate-700 pb-2.5">
+          <div class="flex items-center space-x-2">
+            <div class="w-8 h-8 rounded-xl bg-slate-800 text-emerald-400 flex items-center justify-center border border-slate-700">
+              <i data-lucide="user" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <h3 data-i18n="driver_profile_title" class="text-xs font-black text-white uppercase tracking-tight">Driver Profile</h3>
+              <p class="text-[10px] text-slate-400 font-mono">ID: AMB-1042</p>
+            </div>
+          </div>
+          <button type="button" id="closeProfileModalBtn" class="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+
+        <div class="space-y-2.5">
+          <!-- Driver Badge Card -->
+          <div class="flex items-center space-x-3 p-3 rounded-2xl bg-slate-800/90 border border-slate-700">
+            <div class="w-12 h-12 rounded-xl bg-emerald-600/25 border border-emerald-500/50 text-emerald-400 flex items-center justify-center font-black font-mono text-base shadow-sm">
+              AK
+            </div>
+            <div>
+              <h4 class="text-sm font-black text-white">ARUN KUMAR</h4>
+              <p id="profileRoleText" data-i18n="first_responder_role" class="text-xs font-mono text-emerald-400 font-bold">Paramedic First Responder</p>
+            </div>
+          </div>
+
+          <!-- Language Selector Segmented Widget -->
+          <div class="p-3 rounded-2xl bg-slate-800/90 border border-slate-700 space-y-2">
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-slate-300 font-extrabold uppercase tracking-wider flex items-center gap-1.5">
+                <i data-lucide="languages" class="w-4 h-4 text-sky-400"></i>
+                <span id="profileLangHeading" data-i18n="language_heading">Language / மொழி</span>
+              </span>
+              <span id="currentLangIndicator" class="text-[10px] font-black text-sky-400 font-mono px-2 py-0.5 rounded bg-sky-950/80 border border-sky-800">ENGLISH</span>
+            </div>
+            <div class="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-slate-900 border border-slate-700">
+              <button 
+                type="button" 
+                id="langBtnEn" 
+                class="py-2 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1 bg-emerald-600 text-white shadow-sm cursor-pointer"
+              >
+                <span>English</span>
+              </button>
+              <button 
+                type="button" 
+                id="langBtnTa" 
+                class="py-2 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1 text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer"
+              >
+                <span>தமிழ்</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Emergency Siren & Alert Sound Tone Selector -->
+          <div class="p-3 rounded-2xl bg-slate-800/90 border border-slate-700 space-y-2">
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-slate-300 font-extrabold uppercase tracking-wider flex items-center gap-1.5">
+                <i data-lucide="volume-2" class="w-4 h-4 text-amber-400"></i>
+                <span data-i18n="siren_sound_heading">Emergency Alert Siren</span>
+              </span>
+              <span id="currentSirenBadge" class="text-[10px] font-black text-amber-400 font-mono px-2 py-0.5 rounded bg-amber-950/80 border border-amber-800 uppercase">⚡ RAPID YELP</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <select id="sirenSoundSelect" class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-amber-500 cursor-pointer">
+                <option value="yelp" selected>⚡ Rapid Yelp Siren (Recommended)</option>
+                <option value="q2b">🚨 The Mechanical Beast (Q2B Siren)</option>
+                <option value="rumbler">💥 The Rumbler (Sub-Bass + Yelp)</option>
+                <option value="airhorn">📢 Dual Train Air Horn</option>
+                <option value="hilo">🚨 Classic European Hi-Lo Siren</option>
+                <option value="buzzer">📟 Digital Dispatch Buzzer</option>
+              </select>
+              <button type="button" id="testSirenBtn" class="px-3 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-slate-950 font-black text-xs transition-all flex items-center gap-1 shadow-sm shrink-0 cursor-pointer active:scale-95">
+                <span id="testSirenIcon">▶</span>
+                <span id="testSirenText">Test</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Profile Details Card -->
+          <div class="p-3 rounded-2xl bg-slate-800/90 border border-slate-700 space-y-2 text-xs font-mono">
+            <div class="flex justify-between border-b border-slate-700/60 pb-1.5">
+              <span id="profileLblUnit" data-i18n="lbl_ambulance_unit" class="text-slate-400 uppercase">Ambulance Unit:</span>
+              <span class="font-bold text-white">TN 01 AB 4521</span>
+            </div>
+            <div class="flex justify-between border-b border-slate-700/60 pb-1.5">
+              <span id="profileLblLicense" data-i18n="license_no_lbl" class="text-slate-400 uppercase">License No:</span>
+              <span class="font-bold text-white">TN-01-2018004921</span>
+            </div>
+            <div class="flex justify-between border-b border-slate-700/60 pb-1.5">
+              <span id="profileLblStation" data-i18n="base_station_lbl" class="text-slate-400 uppercase">Base Station:</span>
+              <span id="profileStationVal" data-i18n="central_hub_val" class="font-bold text-white">Central Hub (Zone 1)</span>
+            </div>
+            <div class="flex justify-between">
+              <span id="profileLblDuty" data-i18n="duty_status_lbl" class="text-slate-400 uppercase">Duty Status:</span>
+              <span id="profileDutyStatusBadge" data-i18n="on_duty_badge" class="font-extrabold text-emerald-400">● ON DUTY</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="pt-2 border-t border-slate-700">
+          <button 
+            type="button" 
+            id="endDutyBtn" 
+            class="w-full py-3 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/50 text-rose-300 font-extrabold text-xs uppercase tracking-wider transition-colors flex items-center justify-center gap-2"
+          >
+            <i data-lucide="log-out" class="w-4 h-4"></i>
+            <span data-i18n="end_shift_logout">END SHIFT &amp; LOGOUT</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Case Safety Guard Modal -->
+    <div id="modalActiveGuard" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+      <div class="solid-modal-card w-full max-w-sm p-6 space-y-4 text-center rounded-3xl shadow-2xl">
+        <div class="w-14 h-14 rounded-full bg-rose-500/20 border-2 border-rose-500 mx-auto flex items-center justify-center text-rose-400 shadow-lg">
+          <i data-lucide="shield-alert" class="w-7 h-7"></i>
+        </div>
+        <div>
+          <h3 data-i18n="active_emergency_title" class="text-sm font-extrabold text-white uppercase">Active Emergency In Progress</h3>
+          <p data-i18n="cannot_end_duty_msg" class="text-xs text-slate-300 mt-1">You cannot end duty or logout until the active emergency case is completed.</p>
+        </div>
+        <button type="button" id="dismissGuardModalBtn" class="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-extrabold text-xs uppercase tracking-wider transition-colors">
+          <span data-i18n="return_active_case">RETURN TO ACTIVE CASE</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Support Modal -->
+    <div id="modalSupport" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+      <div class="solid-modal-card w-full max-w-sm p-5 space-y-3 text-center rounded-3xl shadow-2xl">
+        <div class="w-12 h-12 rounded-full bg-rose-500/20 border border-rose-500/40 mx-auto flex items-center justify-center text-rose-400">
+          <i data-lucide="headset" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h3 data-i18n="support_title" class="text-sm font-extrabold text-white uppercase">Control Room Dispatch Support</h3>
+          <p data-i18n="support_sub" class="text-xs text-slate-400 mt-0.5">Emergency Responder Direct Line</p>
+        </div>
+        <div class="p-3 rounded-xl bg-slate-800 border border-slate-700 font-mono text-base font-bold text-rose-400">
+          108 / +91 44 2888 0108
+        </div>
+        <button type="button" id="closeSupportModalBtn" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs uppercase tracking-wider">
+          <span data-i18n="close_btn">CLOSE</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Response History & Records Modal -->
+    <div id="modalHistory" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+      <div class="solid-modal-card w-full max-w-sm max-h-[85vh] flex flex-col p-5 rounded-3xl shadow-2xl">
+        <div class="flex items-center justify-between border-b border-slate-700 pb-3 shrink-0">
+          <div class="flex items-center space-x-2">
+            <div class="w-8 h-8 rounded-xl bg-slate-800 text-emerald-400 flex items-center justify-center border border-slate-700">
+              <i data-lucide="history" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <h3 data-i18n="response_records_title" class="text-xs font-black text-white uppercase">Response Records</h3>
+              <p data-i18n="shift_history_sub" class="text-[10px] text-slate-400 font-medium">Shift Incident History • Unit 4521</p>
+            </div>
+          </div>
+          <button type="button" id="closeHistoryModalBtn" class="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+
+        <!-- History Records Scroll List -->
+        <div id="historyRecordsList" class="overflow-y-auto py-3 space-y-2.5 flex-1 pr-1">
+          <!-- Dynamically populated from AppState.history -->
+        </div>
+
+        <div class="pt-2 border-t border-slate-700 shrink-0">
+          <button type="button" id="closeHistoryBottomBtn" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-extrabold text-xs uppercase tracking-wider">
+            <span data-i18n="close_records_btn">CLOSE RECORDS</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Operational App Logic -->
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

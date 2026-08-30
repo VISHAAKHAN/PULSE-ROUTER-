@@ -1,0 +1,997 @@
+@import url('https://fonts.googleapis.com/css2?family=Catamaran:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600;700;800&family=Mukta+Malar:wght@400;500;600;700;800&family=Noto+Sans+Tamil:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
+
+:root {
+  --font-main: 'Plus Jakarta Sans', 'Noto Sans Tamil', 'Mukta Malar', 'Catamaran', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Color Codes */
+  --bg-deep-navy: #08101e;
+  --bg-card-white: #ffffff;
+  --color-emergency-red: #e11d48;
+  --color-emergency-red-dark: #be123c;
+  --color-active-green: #10b981;
+  --color-navy-text: #0f172a;
+  --color-muted-text: #64748b;
+  --color-subtle-text: #94a3b8;
+  --border-light: #e2e8f0;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-main);
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+html, body {
+  background-color: #030712;
+  color: #ffffff;
+  min-height: 100vh;
+  width: 100%;
+  overflow-x: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Mobile Frame Container */
+.mobile-viewport-container {
+  width: 100%;
+  max-width: 420px;
+  height: 100vh;
+  max-height: 890px;
+  background-color: var(--bg-deep-navy);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+@media (min-width: 640px) {
+  .mobile-viewport-container {
+    height: 92vh;
+    border-radius: 40px;
+    border: 3px solid #1e293b;
+  }
+}
+
+/* Screen Transitions */
+.screen-view {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-deep-navy);
+  z-index: 10;
+  transition: opacity 0.2s ease;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.screen-view.hidden {
+  display: none !important;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Duty Started Pop-up Notification */
+.duty-started-popup {
+  position: absolute;
+  top: 50px;
+  left: 14px;
+  right: 14px;
+  background: #ffffff;
+  border: 2px solid #10b981;
+  border-radius: 24px;
+  padding: 18px 20px;
+  box-shadow: 0 20px 45px -8px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(16, 185, 129, 0.25);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  transform: translateY(-20px) scale(0.95);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+}
+
+.duty-started-popup.show {
+  transform: translateY(0) scale(1);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Hero Background Skyline & Ambulance Lighting */
+.hero-city-ambulance-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 380px;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.ambient-red-glow {
+  position: absolute;
+  width: 220px;
+  height: 220px;
+  top: 110px;
+  right: -30px;
+  background: radial-gradient(circle, rgba(225, 29, 72, 0.35) 0%, rgba(225, 29, 72, 0) 70%);
+  border-radius: 50%;
+  filter: blur(25px);
+  pointer-events: none;
+}
+
+/* Shield Emblem Styling */
+.medical-shield-emblem {
+  position: relative;
+  width: 72px;
+  height: 84px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 0 12px rgba(225, 29, 72, 0.45));
+}
+
+/* Main Login Card */
+.login-main-card {
+  background-color: var(--bg-card-white);
+  border-radius: 28px;
+  box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  color: var(--color-navy-text);
+  position: relative;
+  z-index: 10;
+}
+
+/* Form Input Row Styling */
+.form-input-container {
+  background-color: #ffffff;
+  border: 1px solid var(--border-light);
+  border-radius: 14px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-input-container:focus-within {
+  border-color: #e11d48;
+  box-shadow: 0 0 0 3px rgba(225, 29, 72, 0.12);
+}
+
+.input-icon-box {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background-color: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+/* Primary CTA Button with ECG Pulse Wave */
+.btn-login-cta {
+  position: relative;
+  background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
+  border-radius: 14px;
+  color: #ffffff;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  box-shadow: 0 10px 25px -5px rgba(225, 29, 72, 0.45);
+  overflow: hidden;
+  transition: transform 0.1s ease, box-shadow 0.2s ease;
+}
+
+.btn-login-cta:active {
+  transform: scale(0.99);
+}
+
+.btn-ecg-bg-wave {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 24px;
+  width: 100px;
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+/* Emergency Support Row */
+.emergency-support-row {
+  background-color: #ffffff;
+  border: 1px solid #eef2f6;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.03);
+}
+
+.phone-call-btn-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #e11d48;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  transition: transform 0.15s ease;
+}
+
+.phone-call-btn-circle:active {
+  transform: scale(0.92);
+}
+
+/* ==========================================================================
+   SMARTPHONE INCOMING EMERGENCY CALL UI (EXACT REFERENCE MATCH)
+   ========================================================================== */
+.phone-call-backdrop {
+  background: #060c18;
+  position: relative;
+  overflow: hidden;
+}
+
+.incoming-call-hero-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 270px;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.incoming-pill-badge {
+  background: rgba(225, 29, 72, 0.12);
+  border: 1px solid rgba(225, 29, 72, 0.4);
+  border-radius: 9999px;
+  padding: 6px 16px;
+  box-shadow: 0 0 15px rgba(225, 29, 72, 0.15);
+}
+
+.siren-radar-circle {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.siren-radar-circle .radar-wave {
+  position: absolute;
+  border-radius: 50%;
+  border: 1.5px solid rgba(225, 29, 72, 0.5);
+  animation: sirenPulseRing 2.4s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+}
+
+.siren-radar-circle .radar-wave:nth-child(2) {
+  animation-delay: 0.8s;
+}
+
+.siren-radar-circle .radar-wave:nth-child(3) {
+  animation-delay: 1.6s;
+}
+
+@keyframes sirenPulseRing {
+  0% { width: 50px; height: 50px; opacity: 0.9; }
+  100% { width: 130px; height: 130px; opacity: 0; }
+}
+
+.siren-core-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(225, 29, 72, 0.15);
+  border: 1.5px solid rgba(225, 29, 72, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fb7185;
+  box-shadow: 0 0 25px rgba(225, 29, 72, 0.6);
+  z-index: 2;
+}
+
+/* Translucent Incident Card */
+.incoming-case-card {
+  background: rgba(15, 23, 42, 0.82);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+}
+
+.metric-pill-box {
+  background: rgba(8, 16, 30, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  padding: 10px 8px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.stat-icon-circle {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(225, 29, 72, 0.15);
+  color: #e11d48;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+/* iOS Slide to Attend Track */
+.ios-swipe-track {
+  position: relative;
+  width: 100%;
+  height: 64px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  touch-action: none;
+  cursor: grab;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+}
+
+.ios-swipe-track:active {
+  cursor: grabbing;
+}
+
+.ios-swipe-progress {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.5));
+  pointer-events: none;
+}
+
+.ios-swipe-text {
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  z-index: 1;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 6px;
+  color: #94a3b8;
+  width: 100%;
+  padding-left: 56px;
+  padding-right: 18px;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ios-swipe-thumb {
+  position: absolute;
+  left: 6px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #10b981, #059669);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.7);
+  z-index: 3;
+  transition: transform 0.05s ease-out;
+}
+
+.tap-accept-btn {
+  background: rgba(16, 185, 129, 0.08);
+  border: 1.5px solid #10b981;
+  border-radius: 16px;
+  padding: 12px 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #10b981;
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.15);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.tap-accept-btn:active {
+  transform: scale(0.96);
+  background: rgba(16, 185, 129, 0.18);
+}
+
+.reassurance-bottom-card {
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+}
+
+/* Waiting Radar Breathing Pulse */
+.waiting-pulse-circle {
+  position: relative;
+  width: 130px;
+  height: 130px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.waiting-pulse-circle .pulse-core {
+  width: 64px;
+  height: 64px;
+  background: linear-gradient(135deg, #059669, #10b981);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  box-shadow: 0 0 25px rgba(16, 185, 129, 0.45);
+  z-index: 2;
+}
+
+.waiting-pulse-circle .pulse-wave {
+  position: absolute;
+  border-radius: 50%;
+  border: 1.5px solid rgba(16, 185, 129, 0.35);
+  animation: breathingPulse 2.8s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+}
+
+.waiting-pulse-circle .pulse-wave:nth-child(2) {
+  animation-delay: 0.9s;
+}
+
+.waiting-pulse-circle .pulse-wave:nth-child(3) {
+  animation-delay: 1.8s;
+}
+
+@keyframes breathingPulse {
+  0% { width: 64px; height: 64px; opacity: 0.9; }
+  100% { width: 145px; height: 145px; opacity: 0; }
+}
+
+/* Off-Duty Paused Pulse State */
+.waiting-pulse-circle.off-duty .pulse-core {
+  background: linear-gradient(135deg, #475569, #64748b) !important;
+  box-shadow: 0 0 15px rgba(100, 116, 139, 0.3) !important;
+}
+
+.waiting-pulse-circle.off-duty .pulse-wave {
+  border-color: rgba(148, 163, 184, 0.2) !important;
+  animation-play-state: paused !important;
+  opacity: 0.3 !important;
+}
+
+/* Solid Navy Modal Theme (Fixed from transparency issues) */
+.solid-modal-card {
+  background: #0f172a !important;
+  border: 1.5px solid #334155 !important;
+  color: #ffffff !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.85) !important;
+}
+
+.solid-modal-inner-card {
+  background: #1e293b !important;
+  border: 1px solid #334155 !important;
+  color: #ffffff !important;
+}
+
+/* Home Screen Specific Components */
+.header-card-btn {
+  background: #ffffff;
+  border: 1px solid #eef2f6;
+  border-radius: 16px;
+  padding: 8px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.header-card-btn:active {
+  transform: scale(0.95);
+}
+
+.home-ambulance-card {
+  background: #ffffff;
+  border: 1px solid #edf2f7;
+  border-radius: 20px;
+  box-shadow: 0 4px 15px rgba(15, 23, 42, 0.03);
+}
+
+.unit-row-icon-box {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background-color: #ecfdf5;
+  color: #059669;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dispatch-simulator-box {
+  background: #fff8f8;
+  border: 1.5px dashed #fecdd3;
+  border-radius: 20px;
+}
+
+/* ==========================================================================
+   MAP & HOSPITAL NAVIGATION SCREENS (100% FULL MOBILE VIEWPORT - NO GAPS)
+   ========================================================================== */
+#screenNavigation,
+#screenHospitalNavigation {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: #f8fafc;
+  overflow: hidden;
+  z-index: 10;
+}
+
+#screenNavigation .nav-header-hud,
+#screenHospitalNavigation .nav-header-hud {
+  padding-top: 36px;
+  padding-left: 20px;
+  padding-right: 20px;
+  padding-bottom: 14px;
+  background: #08101e;
+  color: #ffffff;
+  flex-shrink: 0;
+  z-index: 20;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+}
+
+#screenNavigation .nav-map-container,
+#screenHospitalNavigation .nav-map-container {
+  flex: 1 1 0%;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+#navMap,
+#hospitalNavMap {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #f1f5f9;
+}
+
+.leaflet-container {
+  background-color: #f1f5f9 !important;
+  font-family: inherit;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Floating Map Buttons Stack */
+.map-floating-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  color: #334155;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  transition: transform 0.15s ease, background 0.15s ease;
+  cursor: pointer;
+}
+
+.map-floating-btn:active {
+  transform: scale(0.92);
+  background: #f8fafc;
+}
+
+/* Custom Ambulance Nav Arrow Marker */
+.custom-amb-nav-marker {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.amb-nav-core {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 3px solid #2563eb;
+  color: #2563eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.45);
+  z-index: 2;
+}
+
+.amb-nav-halo {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(37, 99, 235, 0.2);
+  animation: ambHaloPulse 2s infinite ease-out;
+}
+
+@keyframes ambHaloPulse {
+  0% { transform: scale(0.8); opacity: 0.8; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+
+/* Custom Destination Target Marker */
+.custom-dest-pin-marker {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dest-pin-core {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #e11d48;
+  border: 2.5px solid #ffffff;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 15px rgba(225, 29, 72, 0.6);
+  z-index: 2;
+}
+
+.dest-pin-ripple {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(225, 29, 72, 0.3);
+  animation: destRipplePulse 1.8s infinite ease-out;
+}
+
+@keyframes destRipplePulse {
+  0% { transform: scale(0.5); opacity: 0.9; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+/* Custom Hospital Destination Marker */
+.custom-hospital-pin-marker {
+  position: relative;
+  width: 46px;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hospital-pin-core {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #0284c7;
+  border: 2.5px solid #ffffff;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(2, 132, 199, 0.7);
+  z-index: 2;
+}
+
+.hospital-pin-ripple {
+  position: absolute;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: rgba(2, 132, 199, 0.3);
+  animation: hospitalRipplePulse 2s infinite ease-out;
+}
+
+@keyframes hospitalRipplePulse {
+  0% { transform: scale(0.6); opacity: 0.9; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+/* Bottom Sheet Navigation Card (Pinned flush to bottom) */
+.nav-bottom-sheet {
+  background: #ffffff;
+  border-top-left-radius: 28px;
+  border-top-right-radius: 28px;
+  box-shadow: 0 -12px 35px rgba(0, 0, 0, 0.12);
+  border-top: 1px solid #f1f5f9;
+  flex-shrink: 0;
+  width: 100%;
+  margin-top: auto;
+  padding: 16px 20px 24px 20px;
+  z-index: 25;
+}
+
+.btn-mark-arrived {
+  background: #09111e;
+  border-radius: 20px;
+  transition: transform 0.15s ease, background 0.15s ease;
+  box-shadow: 0 10px 25px rgba(9, 17, 30, 0.3);
+}
+
+.btn-mark-arrived:active {
+  transform: scale(0.98);
+  background: #0f1c30;
+}
+
+/* Onboard Ambulance Telemetry Device Console Dock */
+.telemetry-device-dock {
+  background: #0f172a;
+  border: 1.5px solid #334155;
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.telemetry-btn {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 14px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: #ffffff;
+  transition: transform 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+  cursor: pointer;
+}
+
+.telemetry-btn:hover {
+  background: #334155;
+  border-color: #64748b;
+}
+
+.telemetry-btn:active {
+  transform: scale(0.95);
+  background: #0284c7;
+  border-color: #38bdf8;
+}
+
+/* Hospital Dynamic Reroute Alert Banner */
+.hospital-reroute-banner {
+  position: absolute;
+  top: 90px;
+  left: 12px;
+  right: 12px;
+  background: linear-gradient(135deg, #1e1b4b, #0f172a);
+  border: 2px solid #f59e0b;
+  border-radius: 18px;
+  padding: 12px 14px;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.6), 0 0 20px rgba(245, 158, 11, 0.3);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  animation: bannerSlideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes bannerSlideDown {
+  0% { transform: translateY(-20px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+.pulse-radar-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 10px #10b981;
+  animation: radarDotBlink 1.4s infinite;
+}
+
+@keyframes radarDotBlink {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.7); }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+/* ==========================================================================
+   TAMIL LANGUAGE TYPOGRAPHY & LAYOUT OPTIMIZATIONS
+   ========================================================================== */
+body.lang-ta,
+html[lang="ta"] body {
+  font-family: 'Noto Sans Tamil', 'Mukta Malar', 'Catamaran', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+body.lang-ta [data-i18n],
+body.lang-ta .ios-swipe-text,
+body.lang-ta .header-card-btn,
+body.lang-ta .btn-mark-arrived,
+body.lang-ta .nav-header-hud,
+body.lang-ta .incoming-pill-badge,
+body.lang-ta .dispatch-simulator-box,
+body.lang-ta .clean-card,
+body.lang-ta .solid-modal-card {
+  letter-spacing: normal !important;
+  text-transform: none !important;
+}
+
+/* Ensure ample line-height for Tamil vowel signs (combining marks) */
+body.lang-ta .leading-none {
+  line-height: 1.3 !important;
+}
+
+body.lang-ta .leading-tight {
+  line-height: 1.4 !important;
+}
+
+body.lang-ta .leading-snug {
+  line-height: 1.45 !important;
+}
+
+/* Tracking / Letter-spacing resets for Indic text */
+body.lang-ta .tracking-tight,
+body.lang-ta .tracking-wide,
+body.lang-ta .tracking-wider,
+body.lang-ta .tracking-widest,
+body.lang-ta .tracking-\[0\.18em\],
+body.lang-ta .tracking-\[0\.25em\] {
+  letter-spacing: normal !important;
+}
+
+/* Top Duty Switcher Card in Tamil */
+#dutySwitcherCard {
+  gap: 8px;
+}
+
+body.lang-ta #dutySwitcherCard h4 {
+  font-size: 11px !important;
+  line-height: 1.3 !important;
+}
+
+body.lang-ta #dutySwitcherCard p {
+  font-size: 9.5px !important;
+}
+
+body.lang-ta #toggleDutyModeBtn {
+  font-size: 10px !important;
+  padding: 6px 10px !important;
+  letter-spacing: normal !important;
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+}
+
+/* Top Action Header Buttons (Profile / History) */
+body.lang-ta .header-card-btn {
+  padding: 6px 8px !important;
+  min-width: 58px;
+}
+
+body.lang-ta .header-card-btn span {
+  font-size: 9px !important;
+  letter-spacing: normal !important;
+  line-height: 1.2 !important;
+}
+
+/* Slide to Attend / Start Trip Sliders */
+body.lang-ta .ios-swipe-text {
+  font-size: 11.5px !important;
+  letter-spacing: normal !important;
+  line-height: 1.25 !important;
+  padding-left: 56px !important;
+  padding-right: 14px !important;
+}
+
+/* Primary Arrival Buttons */
+body.lang-ta .btn-mark-arrived {
+  min-height: 52px;
+  padding: 10px 14px !important;
+}
+
+body.lang-ta .btn-mark-arrived span {
+  font-size: 11px !important;
+  line-height: 1.3 !important;
+  letter-spacing: normal !important;
+  text-align: center;
+}
+
+/* Navigation Floating HUD Header */
+body.lang-ta .nav-header-hud {
+  padding-top: 32px;
+  padding-bottom: 12px;
+}
+
+body.lang-ta .nav-header-hud h1 {
+  line-height: 1.25 !important;
+  font-size: 18px !important;
+  max-width: 220px;
+}
+
+body.lang-ta .nav-header-hud span {
+  letter-spacing: normal !important;
+}
+
+/* Bottom Sheet Metric Row */
+body.lang-ta .nav-bottom-sheet span {
+  letter-spacing: normal !important;
+}
+
+/* Telemetry & Trip Report Cards */
+body.lang-ta #reportIncidentType,
+body.lang-ta #reportSummaryType {
+  line-height: 1.35 !important;
+  font-size: 12px !important;
+}
+
+body.lang-ta .hospital-reroute-banner {
+  padding: 10px 12px;
+}
+
+body.lang-ta .hospital-reroute-banner h4 {
+  font-size: 11px !important;
+  letter-spacing: normal !important;
+}
+
+body.lang-ta .hospital-reroute-banner p {
+  font-size: 10px !important;
+  line-height: 1.35 !important;
+}
+
+/* History Cards */
+body.lang-ta #historyRecordsList {
+  line-height: 1.35;
+}
