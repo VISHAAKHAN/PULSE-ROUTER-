@@ -632,6 +632,7 @@ const AudioEngine = {
   activeNodes: [],
   isPlayingSiren: false,
   previewTimeout: null,
+  masterGain: null,
 
   init() {
     if (!this.ctx) {
@@ -640,24 +641,36 @@ const AudioEngine = {
         this.ctx = new AudioCtx();
       }
     }
-  },
-
-  makeDistortionCurve(amount = 25) {
-    const n_samples = 44100;
-    const curve = new Float32Array(n_samples);
-    const deg = Math.PI / 180;
-    for (let i = 0; i < n_samples; ++i) {
-      const x = (i * 2) / n_samples - 1;
-      curve[i] = ((3 + amount) * x * 20 * deg) / (Math.PI + amount * Math.abs(x));
+    if (this.ctx) {
+      if (!this.masterGain) {
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.gain.value = 0.85; // High, crisp emergency volume
+        this.masterGain.connect(this.ctx.destination);
+      }
+      if (this.ctx.state === 'suspended') {
+        this.ctx.resume().catch(() => {});
+      }
     }
-    return curve;
+    return this.ctx;
   },
 
-  startEmergencySiren() {
+  async ensureRunningContext() {
+    this.init();
+    if (!this.ctx) return false;
+    if (this.ctx.state === 'suspended') {
+      try {
+        await this.ctx.resume();
+      } catch (e) {
+        console.warn('Audio resume failed:', e);
+      }
+    }
+    return this.ctx.state === 'running';
+  },
+
+  async startEmergencySiren() {
     try {
-      this.init();
+      await this.ensureRunningContext();
       if (!this.ctx) return;
-      if (this.ctx.state === 'suspended') this.ctx.resume();
 
       this.stopEmergencySiren();
       this.isPlayingSiren = true;
@@ -696,209 +709,217 @@ const AudioEngine = {
     }
   },
 
-  // ⚡ 1. Rapid Yelp Siren (Default Primary Tone - 4.5 Hz Fast Upward Acoustic Sweep)
+  // ⚡ 1. Rapid Yelp Siren (Hardware LFO Sawtooth Sweep: 650Hz -> 1450Hz at 4.5 sweeps/sec)
   playRapidYelpSiren() {
-    const step = () => {
-      if (!this.isPlayingSiren || !this.ctx) return;
+    try {
       const now = this.ctx.currentTime;
-
       const osc = this.ctx.createOscillator();
       const osc2 = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      const filter = this.ctx.createBiquadFilter();
+      const lfo = this.ctx.createOscillator();
+      const lfoGain = this.ctx.createGain();
+      const sirenGain = this.ctx.createGain();
 
       osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(1050, now);
+
       osc2.type = 'square';
+      osc2.frequency.setValueAtTime(1058, now);
 
-      // Rapid upward acoustic sweep 750 Hz -> 1450 Hz
-      osc.frequency.setValueAtTime(750, now);
-      osc.frequency.exponentialRampToValueAtTime(1450, now + 0.21);
+      // 4.5 Hz Rapid upward sweep
+      lfo.type = 'sawtooth';
+      lfo.frequency.setValueAtTime(4.5, now);
 
-      osc2.frequency.setValueAtTime(755, now);
-      osc2.frequency.exponentialRampToValueAtTime(1460, now + 0.21);
+      // Modulate frequency +/- 400Hz (650Hz to 1450Hz)
+      lfoGain.gain.setValueAtTime(400, now);
+      lfo.connect(lfoGain);
+      lfoGain.connect(osc.frequency);
+      lfoGain.connect(osc2.frequency);
 
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(3400, now);
+      sirenGain.gain.setValueAtTime(0.75, now);
 
-      gain.gain.setValueAtTime(0.32, now);
-      gain.gain.setValueAtTime(0.32, now + 0.20);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.23);
+      osc.connect(sirenGain);
+      osc2.connect(sirenGain);
+      sirenGain.connect(this.masterGain || this.ctx.destination);
 
-      osc.connect(filter);
-      osc2.connect(filter);
-      filter.connect(gain);
-      gain.connect(this.ctx.destination);
-
+      lfo.start(now);
       osc.start(now);
       osc2.start(now);
-      osc.stop(now + 0.23);
-      osc2.stop(now + 0.23);
-      this.activeNodes.push(osc, osc2, filter, gain);
-    };
 
-    step();
-    this.sirenInterval = setInterval(step, 240);
+      this.activeNodes.push(lfo, lfoGain, osc, osc2, sirenGain);
+    } catch (e) {
+      console.error('Rapid yelp error:', e);
+    }
   },
 
-  // 🚨 2. Federal Q2B Beast Siren
+  // 🚨 2. Federal Q2B Beast Siren (Deep Slow Wail: 320Hz -> 1180Hz)
   playQ2BSiren() {
-    const step = () => {
-      if (!this.isPlayingSiren || !this.ctx) return;
+    try {
       const now = this.ctx.currentTime;
       const osc1 = this.ctx.createOscillator();
       const osc2 = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      const filter = this.ctx.createBiquadFilter();
+      const lfo = this.ctx.createOscillator();
+      const lfoGain = this.ctx.createGain();
+      const sirenGain = this.ctx.createGain();
 
       osc1.type = 'sawtooth';
+      osc1.frequency.setValueAtTime(750, now);
+
       osc2.type = 'sawtooth';
-      osc1.frequency.setValueAtTime(280, now);
-      osc1.frequency.exponentialRampToValueAtTime(1180, now + 1.5);
-      osc1.frequency.exponentialRampToValueAtTime(360, now + 3.2);
+      osc2.frequency.setValueAtTime(756, now);
 
-      osc2.frequency.setValueAtTime(284, now);
-      osc2.frequency.exponentialRampToValueAtTime(1192, now + 1.5);
-      osc2.frequency.exponentialRampToValueAtTime(365, now + 3.2);
+      // Slow 0.35 Hz wail modulation
+      lfo.type = 'triangle';
+      lfo.frequency.setValueAtTime(0.35, now);
+      lfoGain.gain.setValueAtTime(430, now);
 
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(2400, now);
+      lfo.connect(lfoGain);
+      lfoGain.connect(osc1.frequency);
+      lfoGain.connect(osc2.frequency);
 
-      gain.gain.setValueAtTime(0.35, now);
-      gain.gain.setValueAtTime(0.45, now + 1.5);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 3.2);
+      sirenGain.gain.setValueAtTime(0.8, now);
 
-      osc1.connect(filter);
-      osc2.connect(filter);
-      filter.connect(gain);
-      gain.connect(this.ctx.destination);
+      osc1.connect(sirenGain);
+      osc2.connect(sirenGain);
+      sirenGain.connect(this.masterGain || this.ctx.destination);
 
+      lfo.start(now);
       osc1.start(now);
       osc2.start(now);
-      osc1.stop(now + 3.25);
-      osc2.stop(now + 3.25);
-      this.activeNodes.push(osc1, osc2, gain, filter);
-    };
 
-    step();
-    this.sirenInterval = setInterval(step, 3300);
+      this.activeNodes.push(lfo, lfoGain, osc1, osc2, sirenGain);
+    } catch (e) {
+      console.error('Q2B error:', e);
+    }
   },
 
-  // 💥 4. The Rumbler Sub-Bass + Yelp
+  // 💥 3. The Rumbler Sub-Bass + Rapid Yelp
   playRumblerSiren() {
-    const step = () => {
-      if (!this.isPlayingSiren || !this.ctx) return;
+    try {
       const now = this.ctx.currentTime;
+      // Main Yelp
       const osc = this.ctx.createOscillator();
-      const oscSub = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
+      const lfo = this.ctx.createOscillator();
+      const lfoGain = this.ctx.createGain();
+
+      // Deep Sub-Bass
+      const subOsc = this.ctx.createOscillator();
+
+      const sirenGain = this.ctx.createGain();
       const subGain = this.ctx.createGain();
 
       osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(750, now);
-      osc.frequency.exponentialRampToValueAtTime(1550, now + 0.22);
-      gain.gain.setValueAtTime(0.35, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.23);
+      osc.frequency.setValueAtTime(1050, now);
 
-      oscSub.type = 'sine';
-      oscSub.frequency.setValueAtTime(65, now);
-      subGain.gain.setValueAtTime(0.65, now);
-      subGain.gain.exponentialRampToValueAtTime(0.05, now + 0.22);
+      lfo.type = 'sawtooth';
+      lfo.frequency.setValueAtTime(4.5, now);
+      lfoGain.gain.setValueAtTime(400, now);
 
-      osc.connect(gain);
-      oscSub.connect(subGain);
-      gain.connect(this.ctx.destination);
-      subGain.connect(this.ctx.destination);
+      lfo.connect(lfoGain);
+      lfoGain.connect(osc.frequency);
 
+      subOsc.type = 'sine';
+      subOsc.frequency.setValueAtTime(65, now);
+
+      sirenGain.gain.setValueAtTime(0.7, now);
+      subGain.gain.setValueAtTime(0.9, now);
+
+      osc.connect(sirenGain);
+      subOsc.connect(subGain);
+      sirenGain.connect(this.masterGain || this.ctx.destination);
+      subGain.connect(this.masterGain || this.ctx.destination);
+
+      lfo.start(now);
       osc.start(now);
-      oscSub.start(now);
-      osc.stop(now + 0.23);
-      oscSub.stop(now + 0.23);
-      this.activeNodes.push(osc, oscSub, gain, subGain);
-    };
+      subOsc.start(now);
 
-    step();
-    this.sirenInterval = setInterval(step, 240);
+      this.activeNodes.push(lfo, lfoGain, osc, subOsc, sirenGain, subGain);
+    } catch (e) {
+      console.error('Rumbler error:', e);
+    }
   },
 
-  // 📢 5. Air Horn Double Blast
+  // 📢 4. Air Horn Double Blast
   playAirHornSiren() {
     const step = () => {
       if (!this.isPlayingSiren || !this.ctx) return;
-      const now = this.ctx.currentTime;
-      [
-        { t: 0, dur: 0.28 },
-        { t: 0.38, dur: 0.48 }
-      ].forEach(blast => {
-        [311.13, 369.99, 466.16].forEach(f => {
-          const osc = this.ctx.createOscillator();
-          const gain = this.ctx.createGain();
-          osc.type = 'sawtooth';
-          osc.frequency.setValueAtTime(f, now + blast.t);
-          gain.gain.setValueAtTime(0.3, now + blast.t);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + blast.t + blast.dur);
-          osc.connect(gain);
-          gain.connect(this.ctx.destination);
-          osc.start(now + blast.t);
-          osc.stop(now + blast.t + blast.dur);
-          this.activeNodes.push(osc, gain);
-        });
-      });
-    };
+      try {
+        const now = this.ctx.currentTime;
+        [0, 0.35].forEach((offset, idx) => {
+          const dur = idx === 0 ? 0.25 : 0.45;
+          [311.13, 369.99, 466.16].forEach(f => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(f, now + offset);
+            gain.gain.setValueAtTime(0.4, now + offset);
+            gain.gain.linearRampToValueAtTime(0.001, now + offset + dur);
 
+            osc.connect(gain);
+            gain.connect(this.masterGain || this.ctx.destination);
+            osc.start(now + offset);
+            osc.stop(now + offset + dur + 0.02);
+            this.activeNodes.push(osc, gain);
+          });
+        });
+      } catch (e) {}
+    };
     step();
-    this.sirenInterval = setInterval(step, 1150);
+    this.sirenInterval = setInterval(step, 1200);
   },
 
-  // 🚨 6. Classic European Hi-Lo
+  // 🚨 5. Classic European Hi-Lo
   playHiLoSiren() {
-    const step = () => {
-      if (!this.isPlayingSiren || !this.ctx) return;
+    try {
       const now = this.ctx.currentTime;
       const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(700, now);
-      osc.frequency.setValueAtTime(950, now + 0.32);
-      gain.gain.setValueAtTime(0.28, now);
-      gain.gain.setValueAtTime(0.28, now + 0.62);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.64);
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.64);
-      this.activeNodes.push(osc, gain);
-    };
+      const lfo = this.ctx.createOscillator();
+      const lfoGain = this.ctx.createGain();
+      const sirenGain = this.ctx.createGain();
 
-    step();
-    this.sirenInterval = setInterval(step, 650);
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(825, now);
+
+      // Square wave LFO creates instantaneous alternating high-lo pitches
+      lfo.type = 'square';
+      lfo.frequency.setValueAtTime(1.6, now);
+      lfoGain.gain.setValueAtTime(150, now);
+
+      lfo.connect(lfoGain);
+      lfoGain.connect(osc.frequency);
+
+      sirenGain.gain.setValueAtTime(0.75, now);
+      osc.connect(sirenGain);
+      sirenGain.connect(this.masterGain || this.ctx.destination);
+
+      lfo.start(now);
+      osc.start(now);
+      this.activeNodes.push(lfo, lfoGain, osc, sirenGain);
+    } catch (e) {
+      console.error('Hi-Lo error:', e);
+    }
   },
 
-  // 📟 7. Digital Buzzer
+  // 📟 6. Digital Buzzer
   playBuzzerSiren() {
     const step = () => {
       if (!this.isPlayingSiren || !this.ctx) return;
-      const now = this.ctx.currentTime;
-      [0, 0.12, 0.24].forEach((offset) => {
-        const osc1 = this.ctx.createOscillator();
-        const osc2 = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc1.type = 'square';
-        osc2.type = 'sawtooth';
-        osc1.frequency.setValueAtTime(2400, now + offset);
-        osc2.frequency.setValueAtTime(2850, now + offset);
-        gain.gain.setValueAtTime(0.25, now + offset);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.08);
-        osc1.connect(gain);
-        osc2.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc1.start(now + offset);
-        osc2.start(now + offset);
-        osc1.stop(now + offset + 0.085);
-        osc2.stop(now + offset + 0.085);
-        this.activeNodes.push(osc1, osc2, gain);
-      });
+      try {
+        const now = this.ctx.currentTime;
+        [0, 0.12, 0.24].forEach((offset) => {
+          const osc1 = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc1.type = 'square';
+          osc1.frequency.setValueAtTime(2400, now + offset);
+          gain.gain.setValueAtTime(0.4, now + offset);
+          gain.gain.linearRampToValueAtTime(0.001, now + offset + 0.08);
+          osc1.connect(gain);
+          gain.connect(this.masterGain || this.ctx.destination);
+          osc1.start(now + offset);
+          osc1.stop(now + offset + 0.09);
+          this.activeNodes.push(osc1, gain);
+        });
+      } catch (e) {}
     };
-
     step();
     this.sirenInterval = setInterval(step, 600);
   },
@@ -943,20 +964,21 @@ const AudioEngine = {
     try {
       this.init();
       if (!this.ctx) return;
-      if (this.ctx.state === 'suspended') this.ctx.resume();
+      if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
 
+      const now = this.ctx.currentTime;
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(1046.50, this.ctx.currentTime);
-      gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.18);
+      osc.frequency.setValueAtTime(1046.50, now);
+      gain.gain.setValueAtTime(0.4, now);
+      gain.gain.linearRampToValueAtTime(0.001, now + 0.18);
 
       osc.connect(gain);
-      gain.connect(this.ctx.destination);
+      gain.connect(this.masterGain || this.ctx.destination);
 
-      osc.start();
-      osc.stop(this.ctx.currentTime + 0.2);
+      osc.start(now);
+      osc.stop(now + 0.2);
     } catch (e) {}
   },
 
@@ -964,20 +986,21 @@ const AudioEngine = {
     try {
       this.init();
       if (!this.ctx) return;
-      if (this.ctx.state === 'suspended') this.ctx.resume();
+      if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
 
+      const now = this.ctx.currentTime;
       [880, 587.33, 880].forEach((freq, i) => {
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
         osc.frequency.value = freq;
-        gain.gain.setValueAtTime(0.2, this.ctx.currentTime + i * 0.15);
-        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + i * 0.15 + 0.3);
+        gain.gain.setValueAtTime(0.35, now + i * 0.15);
+        gain.gain.linearRampToValueAtTime(0.001, now + i * 0.15 + 0.3);
 
         osc.connect(gain);
-        gain.connect(this.ctx.destination);
+        gain.connect(this.masterGain || this.ctx.destination);
 
-        osc.start(this.ctx.currentTime + i * 0.15);
-        osc.stop(this.ctx.currentTime + i * 0.15 + 0.35);
+        osc.start(now + i * 0.15);
+        osc.stop(now + i * 0.15 + 0.35);
       });
     } catch (e) {}
   },
@@ -986,24 +1009,35 @@ const AudioEngine = {
     try {
       this.init();
       if (!this.ctx) return;
-      if (this.ctx.state === 'suspended') this.ctx.resume();
+      if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
 
+      const now = this.ctx.currentTime;
       [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
         osc.frequency.value = freq;
-        gain.gain.setValueAtTime(0.2, this.ctx.currentTime + i * 0.12);
-        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + i * 0.12 + 0.35);
+        gain.gain.setValueAtTime(0.35, now + i * 0.12);
+        gain.gain.linearRampToValueAtTime(0.001, now + i * 0.12 + 0.35);
 
         osc.connect(gain);
-        gain.connect(this.ctx.destination);
+        gain.connect(this.masterGain || this.ctx.destination);
 
-        osc.start(this.ctx.currentTime + i * 0.12);
-        osc.stop(this.ctx.currentTime + i * 0.12 + 0.4);
+        osc.start(now + i * 0.12);
+        osc.stop(now + i * 0.12 + 0.4);
       });
     } catch (e) {}
   }
 };
+
+// Global audio unlocker on any user gesture (clicks, taps, keys)
+['click', 'touchstart', 'touchend', 'mousedown', 'keydown'].forEach(evt => {
+  window.addEventListener(evt, () => {
+    AudioEngine.init();
+    if (AudioEngine.ctx && AudioEngine.ctx.state === 'suspended') {
+      AudioEngine.ctx.resume().catch(() => {});
+    }
+  }, { passive: true });
+});
 
 /* ==========================================================================
    2. Screen Navigation & Flow Controller
@@ -2226,10 +2260,11 @@ if (document.readyState === 'loading') {
 
 // Expose key API to window for testing, automated verification and workflow control
 window.AppState = AppState;
+window.AudioEngine = AudioEngine;
 window.navigateToScreen = navigateToScreen;
 window.triggerEmergencyAssignment = triggerEmergencyAssignment;
 window.onSwipeComplete = onSwipeComplete;
-window.arrivedAtIncidentLocation = arrivedAtIncidentLocation;
+window.markArrivedAtIncidentLocation = markArrivedAtIncidentLocation;
 window.startHospitalNavigation = startHospitalNavigation;
 window.triggerDynamicHospitalReroute = triggerDynamicHospitalReroute;
 window.completeTripAndShowReport = completeTripAndShowReport;
